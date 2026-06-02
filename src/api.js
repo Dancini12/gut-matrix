@@ -9,7 +9,7 @@ function decodeSession() {
   try {
     const payload = JSON.parse(atob(token.split(".")[1]));
     if (payload.exp * 1000 < Date.now()) { localStorage.removeItem(KEY); return null; }
-    return { user: { id: payload.id, email: payload.email } };
+    return { user: { id: payload.id, nome: payload.nome, email: payload.email } };
   } catch { return null; }
 }
 
@@ -40,8 +40,8 @@ export const auth = {
     return { data: { session: { user: data.user } } };
   },
 
-  async register(email, password) {
-    const { data, error } = await call("POST", "/auth/register", { email, password });
+  async register(nome, email, password) {
+    const { data, error } = await call("POST", "/auth/register", { nome, email, password });
     if (error) return { error };
     localStorage.setItem(KEY, data.token);
     return { data: { session: { user: data.user } } };

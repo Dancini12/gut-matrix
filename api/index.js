@@ -53,8 +53,8 @@ app.post("/auth/login", async (req, res) => {
     if (!user || !(await bcryptjs.compare(password, user.password_hash)))
       return res.status(401).json({ error: "E-mail ou senha incorretos" });
 
-    const token = await signToken({ id: user.id, email: user.email });
-    res.json({ token, user: { id: user.id, email: user.email } });
+    const token = await signToken({ id: user.id, nome: user.nome, email: user.email });
+    res.json({ token, user: { id: user.id, nome: user.nome, email: user.email } });
   } catch {
     res.status(500).json({ error: "Erro interno" });
   }
@@ -63,7 +63,9 @@ app.post("/auth/login", async (req, res) => {
 // ── Auth: cadastro ──────────────────────────────────────────────────────────
 app.post("/auth/register", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { nome, email, password } = req.body;
+    if (!nome?.trim())
+      return res.status(400).json({ error: "Informe seu nome completo" });
     if (!email || !password)
       return res.status(400).json({ error: "E-mail e senha são obrigatórios" });
     if (password.length < 6)
@@ -72,14 +74,14 @@ app.post("/auth/register", async (req, res) => {
     const hash = await bcryptjs.hash(password, 10);
     const id   = randomUUID();
     try {
-      await db.execute({ sql: "INSERT INTO users (id, email, password_hash) VALUES (?, ?, ?)", args: [id, email.toLowerCase(), hash] });
+      await db.execute({ sql: "INSERT INTO users (id, nome, email, password_hash) VALUES (?, ?, ?, ?)", args: [id, nome.trim(), email.toLowerCase(), hash] });
     } catch (e) {
       if (e.message?.includes("UNIQUE"))
         return res.status(409).json({ error: "E-mail já cadastrado" });
       throw e;
     }
-    const token = await signToken({ id, email: email.toLowerCase() });
-    res.status(201).json({ token, user: { id, email: email.toLowerCase() } });
+    const token = await signToken({ id, nome: nome.trim(), email: email.toLowerCase() });
+    res.status(201).json({ token, user: { id, nome: nome.trim(), email: email.toLowerCase() } });
   } catch {
     res.status(500).json({ error: "Erro interno" });
   }

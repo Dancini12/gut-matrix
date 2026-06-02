@@ -274,6 +274,7 @@ function Opcoes({ r, campo, setCampo }) {
 // Tela de Cadastro
 // ─────────────────────────────────────────────
 function TelaCadastro({ onLogin, onVoltar }) {
+  const [nome, setNome]             = useState("");
   const [email, setEmail]           = useState("");
   const [senha, setSenha]           = useState("");
   const [confirmar, setConfirmar]   = useState("");
@@ -283,13 +284,14 @@ function TelaCadastro({ onLogin, onVoltar }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErro("");
+    if (!nome.trim())    { setErro("Informe seu nome completo."); return; }
     if (!email.trim())   { setErro("Informe seu e-mail."); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setErro("E-mail inválido."); return; }
     if (!senha)          { setErro("Informe uma senha."); return; }
     if (senha.length < 6){ setErro("Senha deve ter ao menos 6 caracteres."); return; }
     if (senha !== confirmar) { setErro("As senhas não coincidem."); return; }
     setCarregando(true);
-    const { data, error } = await auth.register(email, senha);
+    const { data, error } = await auth.register(nome, email, senha);
     setCarregando(false);
     if (error) { setErro(error.error === "E-mail já cadastrado" ? "Este e-mail já possui uma conta." : "Erro ao criar conta. Tente novamente."); return; }
     onLogin(data.session);
@@ -307,6 +309,11 @@ function TelaCadastro({ onLogin, onVoltar }) {
           </div>
           <div className="auth-box-body">
             <form onSubmit={handleSubmit} noValidate>
+              <div className="field">
+                <label htmlFor="cad-nome">Nome Completo</label>
+                <input id="cad-nome" type="text" placeholder="Seu nome completo"
+                  value={nome} onChange={(e) => setNome(e.target.value)} autoComplete="name" />
+              </div>
               <div className="field">
                 <label htmlFor="cad-email">E-mail</label>
                 <input id="cad-email" type="email" placeholder="voce@instituicao.edu.br"
@@ -567,7 +574,7 @@ export default function App() {
           </div>
         </div>
         <div className="header-user">
-          Olá, <strong>{sessao.user.email.split("@")[0]}</strong>
+          Olá, <strong>{sessao.user.nome || sessao.user.email.split("@")[0]}</strong>
         </div>
       </div>
 
