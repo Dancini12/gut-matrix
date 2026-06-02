@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { supabase } from "./supabase";
+import { auth, problems as api } from "./api";
 
 // ─────────────────────────────────────────────
 // Constantes
@@ -24,10 +24,10 @@ const ESCALA = {
 };
 
 const PRESET = [
-  { nome: "Atraso na entrega de pedidos", g: 4, u: 4, t: 4 },
-  { nome: "Reclamações no atendimento",   g: 3, u: 3, t: 3 },
+  { nome: "Atraso na entrega de pedidos",  g: 4, u: 4, t: 4 },
+  { nome: "Reclamações no atendimento",    g: 3, u: 3, t: 3 },
   { nome: "Falta de divulgação nas redes", g: 4, u: 3, t: 4 },
-  { nome: "Equipe sobrecarregada",        g: 3, u: 4, t: 4 },
+  { nome: "Equipe sobrecarregada",         g: 3, u: 4, t: 4 },
 ];
 
 const tier = (v) => {
@@ -38,7 +38,7 @@ const tier = (v) => {
 };
 
 // ─────────────────────────────────────────────
-// Estilos compartilhados
+// Estilos
 // ─────────────────────────────────────────────
 const STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=DM+Sans:wght@400;500;600&display=swap');
@@ -46,6 +46,8 @@ const STYLES = `
   :root { --ink:#1c1a17; --paper:#f6f2ea; --card:#fffdf8; --line:#e3dccd; --muted:#a89e8c; --accent:#c4521e; }
 
   .wrap { background:var(--paper); color:var(--ink); min-height:100vh; font-family:'DM Sans',system-ui,sans-serif; padding:28px; }
+  .loading { display:flex; align-items:center; justify-content:center; min-height:100vh;
+    font-family:'DM Sans',system-ui,sans-serif; color:var(--muted); background:var(--paper); font-size:15px; }
 
   /* Auth */
   .auth-wrap { background:var(--paper); color:var(--ink); min-height:100vh; font-family:'DM Sans',system-ui,sans-serif;
@@ -124,14 +126,10 @@ const STYLES = `
   .add:hover { border-color:var(--accent); color:var(--accent); }
   .card   { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:16px; }
   .card h2 { font-family:'Fraunces',serif; font-size:16px; font-weight:600; margin:0 0 12px; }
-
-  /* Loading */
-  .loading { display:flex; align-items:center; justify-content:center; min-height:100vh;
-    font-family:'DM Sans',system-ui,sans-serif; color:var(--muted); background:var(--paper); font-size:15px; }
 `;
 
 // ─────────────────────────────────────────────
-// Componente Opcoes (fora de App para evitar remount)
+// Componente Opcoes
 // ─────────────────────────────────────────────
 function Opcoes({ r, campo, setCampo }) {
   return (
@@ -153,10 +151,10 @@ function Opcoes({ r, campo, setCampo }) {
 // ─────────────────────────────────────────────
 // Tela de Login
 // ─────────────────────────────────────────────
-function TelaLogin({ onForgot }) {
-  const [email, setEmail]         = useState("");
-  const [senha, setSenha]         = useState("");
-  const [erro, setErro]           = useState("");
+function TelaLogin({ onLogin, onForgot }) {
+  const [email, setEmail]           = useState("");
+  const [senha, setSenha]           = useState("");
+  const [erro, setErro]             = useState("");
   const [carregando, setCarregando] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -165,10 +163,10 @@ function TelaLogin({ onForgot }) {
     if (!email.trim()) { setErro("Informe seu e-mail."); return; }
     if (!senha)         { setErro("Informe sua senha."); return; }
     setCarregando(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
+    const { data, error } = await auth.signIn(email, senha);
     setCarregando(false);
-    if (error) setErro("E-mail ou senha incorretos.");
-    // se ok, o listener onAuthStateChange em App cuida da navegação
+    if (error) { setErro("E-mail ou senha incorretos."); return; }
+    onLogin(data.session);
   };
 
   return (
@@ -207,9 +205,9 @@ function TelaLogin({ onForgot }) {
 // Tela Esqueceu a Senha
 // ─────────────────────────────────────────────
 function TelaEsqueceuSenha({ onVoltar }) {
-  const [email, setEmail]         = useState("");
-  const [erro, setErro]           = useState("");
-  const [enviado, setEnviado]     = useState(false);
+  const [email, setEmail]           = useState("");
+  const [erro, setErro]             = useState("");
+  const [enviado, setEnviado]       = useState(false);
   const [carregando, setCarregando] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -218,11 +216,8 @@ function TelaEsqueceuSenha({ onVoltar }) {
     if (!email.trim()) { setErro("Informe seu e-mail."); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setErro("E-mail inválido."); return; }
     setCarregando(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin,
-    });
+    await auth.forgotPassword(email);
     setCarregando(false);
-    if (error) { setErro("Não foi possível enviar o e-mail. Tente novamente."); return; }
     setEnviado(true);
   };
 
@@ -233,8 +228,7 @@ function TelaEsqueceuSenha({ onVoltar }) {
         <div className="kicker">Recuperação de acesso</div>
         <div className="auth-logo">Redefinir senha</div>
         <p className="auth-sub">
-          {enviado
-            ? "Verifique sua caixa de entrada."
+          {enviado ? "Verifique sua caixa de entrada."
             : "Informe o e-mail da sua conta e enviaremos um link para redefinir sua senha."}
         </p>
         {enviado ? (
@@ -271,65 +265,57 @@ function TelaEsqueceuSenha({ onVoltar }) {
 // App principal
 // ─────────────────────────────────────────────
 export default function App() {
-  const [sessao, setSessao]   = useState(undefined); // undefined = carregando, null = deslogado
-  const [tela, setTela]       = useState("login");   // "login" | "esqueceu"
-  const [rows, setRows]       = useState([]);
-  const [salvando, setSalvando] = useState(false);
+  const [sessao, setSessao]         = useState(undefined);
+  const [tela, setTela]             = useState("login");
+  const [rows, setRows]             = useState([]);
+  const [salvando, setSalvando]     = useState(false);
 
-  // ── Sessão Supabase ──
+  // Recupera sessão do token local
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSessao(data.session));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_ev, s) => setSessao(s));
-    return () => subscription.unsubscribe();
+    const { data: { session } } = auth.getSession();
+    setSessao(session ?? null);
   }, []);
 
-  // ── Carregar problemas do banco quando loga ──
+  // Carrega problemas ao logar
   useEffect(() => {
     if (!sessao) { setRows([]); return; }
-    supabase
-      .from("problems")
-      .select("*")
-      .order("created_at")
-      .then(({ data }) => setRows(data ?? []));
+    api.list().then(({ data }) => setRows(data ?? []));
   }, [sessao]);
 
-  // ── CRUD com Supabase ──
   const setCampo = async (id, campo, val) => {
     setRows((p) => p.map((r) => (r.id === id ? { ...r, [campo]: val } : r)));
-    await supabase.from("problems").update({ [campo]: val }).eq("id", id);
+    await api.update(id, { [campo]: val });
   };
 
   const remover = async (id) => {
     setRows((p) => p.filter((r) => r.id !== id));
-    await supabase.from("problems").delete().eq("id", id);
+    await api.remove(id);
   };
 
   const add = async () => {
-    const nova = { nome: "", g: 3, u: 3, t: 3, user_id: sessao.user.id };
-    const { data } = await supabase.from("problems").insert(nova).select().single();
+    const { data } = await api.create({ nome: "", g: 3, u: 3, t: 3 });
     if (data) setRows((p) => [...p, data]);
   };
 
   const carregarPreset = async () => {
     setSalvando(true);
-    await supabase.from("problems").delete().eq("user_id", sessao.user.id);
-    const inserir = PRESET.map((d) => ({ ...d, user_id: sessao.user.id }));
-    const { data } = await supabase.from("problems").insert(inserir).select();
+    const { data } = await api.replaceAll(PRESET);
     setRows(data ?? []);
     setSalvando(false);
   };
 
   const limpar = async () => {
     setSalvando(true);
-    await supabase.from("problems").delete().eq("user_id", sessao.user.id);
-    const { data } = await supabase.from("problems").insert({ nome: "", g: 3, u: 3, t: 3, user_id: sessao.user.id }).select().single();
-    setRows(data ? [data] : []);
+    const { data } = await api.replaceAll([{ nome: "", g: 3, u: 3, t: 3 }]);
+    setRows(data ?? []);
     setSalvando(false);
   };
 
-  const logout = () => supabase.auth.signOut();
+  const logout = async () => {
+    await auth.signOut();
+    setSessao(null);
+  };
 
-  // ── Ranking ──
   const ranking = useMemo(() => {
     const valid = rows
       .map((r) => ({ ...r, gut: r.g * r.u * r.t }))
@@ -343,22 +329,18 @@ export default function App() {
   const top   = ranking.ordenado[0];
   const chart = ranking.ordenado.slice(0, 10).map((r) => ({
     nome: r.nome.length > 22 ? r.nome.slice(0, 21) + "…" : r.nome,
-    gut: r.gut,
-    cor: tier(r.gut).cor,
+    gut:  r.gut,
+    cor:  tier(r.gut).cor,
   }));
 
-  // ── Loading inicial ──
-  if (sessao === undefined) {
+  if (sessao === undefined)
     return <div className="loading"><style>{STYLES}</style>Carregando…</div>;
-  }
 
-  // ── Auth screens ──
   if (!sessao) {
     if (tela === "esqueceu") return <TelaEsqueceuSenha onVoltar={() => setTela("login")} />;
-    return <TelaLogin onForgot={() => setTela("esqueceu")} />;
+    return <TelaLogin onLogin={setSessao} onForgot={() => setTela("esqueceu")} />;
   }
 
-  // ── App ──
   return (
     <div className="wrap">
       <style>{STYLES}</style>
