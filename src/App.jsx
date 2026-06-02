@@ -149,9 +149,75 @@ function Opcoes({ r, campo, setCampo }) {
 }
 
 // ─────────────────────────────────────────────
+// Tela de Cadastro
+// ─────────────────────────────────────────────
+function TelaCadastro({ onLogin, onVoltar }) {
+  const [email, setEmail]             = useState("");
+  const [senha, setSenha]             = useState("");
+  const [confirmar, setConfirmar]     = useState("");
+  const [erro, setErro]               = useState("");
+  const [carregando, setCarregando]   = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setErro("");
+    if (!email.trim())            { setErro("Informe seu e-mail."); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setErro("E-mail inválido."); return; }
+    if (!senha)                   { setErro("Informe uma senha."); return; }
+    if (senha.length < 6)         { setErro("Senha deve ter ao menos 6 caracteres."); return; }
+    if (senha !== confirmar)      { setErro("As senhas não coincidem."); return; }
+    setCarregando(true);
+    const { data, error } = await auth.register(email, senha);
+    setCarregando(false);
+    if (error) {
+      setErro(error.error === "E-mail já cadastrado" ? "Este e-mail já possui uma conta." : "Erro ao criar conta. Tente novamente.");
+      return;
+    }
+    onLogin(data.session);
+  };
+
+  return (
+    <div className="auth-wrap">
+      <style>{STYLES}</style>
+      <div className="auth-box">
+        <div className="kicker">Ferramenta de Priorização</div>
+        <div className="auth-logo">Criar conta</div>
+        <p className="auth-sub">Preencha os dados abaixo para criar sua conta e começar a priorizar.</p>
+        <form onSubmit={handleSubmit} noValidate>
+          <div className="field">
+            <label htmlFor="cad-email">E-mail</label>
+            <input id="cad-email" type="email" placeholder="voce@empresa.com"
+              value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+          </div>
+          <div className="field">
+            <label htmlFor="cad-senha">Senha</label>
+            <input id="cad-senha" type="password" placeholder="Mínimo 6 caracteres"
+              value={senha} onChange={(e) => setSenha(e.target.value)} autoComplete="new-password" />
+          </div>
+          <div className="field">
+            <label htmlFor="cad-confirmar">Confirmar senha</label>
+            <input id="cad-confirmar" type="password" placeholder="Repita a senha"
+              value={confirmar} onChange={(e) => setConfirmar(e.target.value)} autoComplete="new-password" />
+          </div>
+          {erro && <div className="auth-error">{erro}</div>}
+          <button type="submit" className="btn-primary" disabled={carregando}>
+            {carregando ? "Criando conta…" : "Criar conta"}
+          </button>
+        </form>
+        <hr className="auth-divider" />
+        <div className="auth-footer">
+          Já tem uma conta?{" "}
+          <button className="link-btn" onClick={onVoltar}>Entrar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // Tela de Login
 // ─────────────────────────────────────────────
-function TelaLogin({ onLogin, onForgot }) {
+function TelaLogin({ onLogin, onForgot, onCadastro }) {
   const [email, setEmail]           = useState("");
   const [senha, setSenha]           = useState("");
   const [erro, setErro]             = useState("");
@@ -193,8 +259,9 @@ function TelaLogin({ onLogin, onForgot }) {
           </button>
         </form>
         <hr className="auth-divider" />
-        <div className="auth-footer">
+        <div className="auth-footer" style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
           <button className="link-btn" onClick={onForgot}>Esqueceu sua senha?</button>
+          <span>Não tem conta? <button className="link-btn" onClick={onCadastro}>Criar conta grátis</button></span>
         </div>
       </div>
     </div>
@@ -337,8 +404,9 @@ export default function App() {
     return <div className="loading"><style>{STYLES}</style>Carregando…</div>;
 
   if (!sessao) {
-    if (tela === "esqueceu") return <TelaEsqueceuSenha onVoltar={() => setTela("login")} />;
-    return <TelaLogin onLogin={setSessao} onForgot={() => setTela("esqueceu")} />;
+    if (tela === "esqueceu")  return <TelaEsqueceuSenha onVoltar={() => setTela("login")} />;
+    if (tela === "cadastro")  return <TelaCadastro onLogin={setSessao} onVoltar={() => setTela("login")} />;
+    return <TelaLogin onLogin={setSessao} onForgot={() => setTela("esqueceu")} onCadastro={() => setTela("cadastro")} />;
   }
 
   return (

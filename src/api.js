@@ -40,6 +40,13 @@ export const auth = {
     return { data: { session: { user: data.user } } };
   },
 
+  async register(email, password) {
+    const { data, error } = await call("POST", "/auth/register", { email, password });
+    if (error) return { error };
+    localStorage.setItem(KEY, data.token);
+    return { data: { session: { user: data.user } } };
+  },
+
   async signOut() {
     localStorage.removeItem(KEY);
   },
