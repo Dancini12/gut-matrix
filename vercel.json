@@ -1,31 +1,8 @@
 {
   "rewrites": [
-    {
-      "source": "/auth/:path*",
-      "destination": "/api/index"
-    },
-    {
-      "source": "/problems/:path*",
-      "destination": "/api/index"
-    },
-    {
-      "source": "/problems",
-      "destination": "/api/index"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ],
-  "experimentalServices": {
-    "frontend": {
-      "routePrefix": "/",
-      "framework": "vite"
-    },
-    "backend": {
-      "root": "backend",
-      "entrypoint": "server.js",
-      "routePrefix": "/_/backend"
-    }
-  }
+    { "source": "/auth/:path*",     "destination": "/api/index" },
+    { "source": "/problems",        "destination": "/api/index" },
+    { "source": "/problems/:path*", "destination": "/api/index" },
+    { "source": "/(.*)",            "destination": "/index.html" }
+  ]
 }
