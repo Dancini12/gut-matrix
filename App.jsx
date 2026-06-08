@@ -303,27 +303,42 @@ function TelaComoFunciona() {
 }
 
 // ─────────────────────────────────────────────
-// Geração de PDF
+// Geração de PDF com layout UENP
 // ─────────────────────────────────────────────
 function gerarPDF(ranking) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
 
-  doc.setFillColor(196, 82, 30);
-  doc.rect(0, 0, pageW, 28, "F");
+  // Cabeçalho UENP
+  doc.setFillColor(220, 20, 60); // Vermelho UENP
+  doc.rect(0, 0, pageW, 35, "F");
+  
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(18);
-  doc.text("Matriz GUT — Relatório de Priorização", 14, 12);
+  doc.setFontSize(16);
+  doc.text("UNIVERSIDADE ESTADUAL DO NORTE DO PARANÁ", pageW / 2, 8, { align: "center" });
+  
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.text(`Gerado em: ${new Date().toLocaleString("pt-BR")}`, 14, 20);
+  doc.setFontSize(10);
+  doc.text("UENP", pageW / 2, 14, { align: "center" });
+  
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text("Matriz GUT — Relatório de Priorização", pageW / 2, 22, { align: "center" });
+  
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.text(`Gerado em: ${new Date().toLocaleString("pt-BR")}`, pageW / 2, 28, { align: "center" });
+  doc.text(`Desenvolvido por: Marcel Dancini`, pageW / 2, 33, { align: "center" });
 
+  // Legenda de classificação
   doc.setTextColor(28, 26, 23);
   doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
-  doc.text("Classificação:", 14, 36);
+  doc.text("Classificação:", 14, 42);
   doc.setFont("helvetica", "normal");
+  
   const legs = [
     { label: "Crítica (≥100)", r: 179, g: 38,  b: 30 },
     { label: "Alta (50–99)",   r: 217, g: 119, b: 43 },
@@ -333,28 +348,37 @@ function gerarPDF(ranking) {
   let lx = 42;
   legs.forEach(({ label, r, g, b }) => {
     doc.setFillColor(r, g, b);
-    doc.roundedRect(lx, 32, 3, 3, 0.5, 0.5, "F");
+    doc.roundedRect(lx, 39, 3, 3, 0.5, 0.5, "F");
     doc.setTextColor(28, 26, 23);
-    doc.text(label, lx + 5, 35.5);
+    doc.text(label, lx + 5, 41.5);
     lx += label.length * 1.9 + 10;
   });
 
+  // Tabela de ranking
   const rows = ranking.map((r, i) => [
     i + 1,
     r.nome,
-    r.g, ESCALA.g.niveis[r.g],
-    r.u, ESCALA.u.niveis[r.u],
-    r.t, ESCALA.t.niveis[r.t],
+    r.g,
+    ESCALA.g.niveis[r.g],
+    r.u,
+    ESCALA.u.niveis[r.u],
+    r.t,
+    ESCALA.t.niveis[r.t],
     r.gut,
     tier(r.gut).rotulo,
   ]);
 
   autoTable(doc, {
-    startY: 42,
+    startY: 48,
     head: [["#", "Problema", "G", "Gravidade", "U", "Urgência", "T", "Tendência", "GUT", "Nível"]],
     body: rows,
     styles: { fontSize: 8, cellPadding: 2.5, font: "helvetica" },
-    headStyles: { fillColor: [240, 235, 224], textColor: [28, 26, 23], fontStyle: "bold", fontSize: 8 },
+    headStyles: { 
+      fillColor: [220, 20, 60], 
+      textColor: [255, 255, 255], 
+      fontStyle: "bold", 
+      fontSize: 8 
+    },
     columnStyles: {
       0: { cellWidth: 8,  halign: "center" },
       2: { cellWidth: 9,  halign: "center" },
@@ -368,28 +392,41 @@ function gerarPDF(ranking) {
         const row = ranking[data.row.index];
         if (!row) return;
         const t = tier(row.gut);
-        const [rv, gv, bv] = t.cor.match(/\w\w/g).map((h) => parseInt(h, 16));
-        doc.setFillColor(rv, gv, bv);
-        const cx = data.cell.x + data.cell.width / 2;
-        const cy = data.cell.y + data.cell.height / 2;
-        doc.roundedRect(cx - 9, cy - 3, 18, 6, 1, 1, "F");
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(7);
-        doc.setFont("helvetica", "bold");
-        doc.text(t.rotulo, cx, cy + 0.8, { align: "center" });
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(28, 26, 23);
+        try {
+          const matches = t.cor.match(/\w\w/g);
+          if (matches && matches.length === 3) {
+            const [rv, gv, bv] = matches.map((h) => parseInt(h, 16));
+            doc.setFillColor(rv, gv, bv);
+            const cx = data.cell.x + data.cell.width / 2;
+            const cy = data.cell.y + data.cell.height / 2;
+            doc.roundedRect(cx - 9, cy - 3, 18, 6, 1, 1, "F");
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(7);
+            doc.setFont("helvetica", "bold");
+            doc.text(t.rotulo, cx, cy + 0.8, { align: "center" });
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(28, 26, 23);
+          }
+        } catch (e) {
+          console.error("Erro ao renderizar célula:", e);
+        }
       }
     },
     alternateRowStyles: { fillColor: [250, 246, 238] },
     margin: { left: 14, right: 14 },
   });
 
+  // Rodapé com informações
   const finalY = doc.lastAutoTable.finalY + 8;
-  doc.setFontSize(8);
-  doc.setTextColor(168, 158, 140);
-  doc.text("Desenvolvido por Marcel Dancini · IA: Claude (Anthropic)", 14, finalY);
-  doc.text("Página 1", pageW - 14, finalY, { align: "right" });
+  doc.setFontSize(7);
+  doc.setTextColor(100, 100, 100);
+  doc.setDrawColor(220, 20, 60);
+  doc.line(14, pageH - 12, pageW - 14, pageH - 12);
+  
+  doc.text("Matriz GUT — Ferramenta de Priorização", 14, pageH - 8);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Desenvolvido por: Marcel Dancini`, 14, pageH - 4);
+  doc.text(`Página 1 | ${new Date().getFullYear()}`, pageW - 14, pageH - 4, { align: "right" });
 
   doc.save(`matriz-gut-${Date.now()}.pdf`);
 }
