@@ -398,8 +398,8 @@ function gerarPDF(ranking) {
 // App principal
 // ─────────────────────────────────────────────
 export default function App() {
-  const [aba, setAba]   = useState("ferramenta");
-  const [rows, setRows] = useState(PRESET.map((d) => nova(d)));
+  const [aba, setAba]   = useState("como-funciona");
+  const [rows, setRows] = useState([nova()]);
 
   const setCampo = (id, campo, val) =>
     setRows((p) => p.map((r) => (r.id === id ? { ...r, [campo]: val } : r)));
@@ -439,11 +439,11 @@ export default function App() {
       </div>
 
       <div className="tabs">
-        <button className={`tab ${aba === "ferramenta" ? "active" : ""}`} onClick={() => setAba("ferramenta")}>
-          Ferramenta
-        </button>
         <button className={`tab ${aba === "como-funciona" ? "active" : ""}`} onClick={() => setAba("como-funciona")}>
           Como funciona
+        </button>
+        <button className={`tab ${aba === "ferramenta" ? "active" : ""}`} onClick={() => setAba("ferramenta")}>
+          Ferramenta
         </button>
       </div>
 
